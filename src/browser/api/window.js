@@ -442,7 +442,10 @@ Window.create = function(id, opts) {
 
     // Hack: Closing a window before content is finished loading can cause the renderer to crash.
     // TODO: Remove if/when we get a Chromium fix in place.
+    let wasEarlyCloseRequested = false;
     const handleEarlyClose = () => {
+        wasEarlyCloseRequested = true;
+        browserWindow.hide();
         // Active iframes can cause crash. Flush DOM before close.
         browserWindow.webContents.executeJavaScript('document.removeChild(document.documentElement);').then(() => {
             Window.close({ uuid, name }, true);
@@ -901,7 +904,9 @@ Window.create = function(id, opts) {
         const subscription = Rx.Observable.zip(apiInjectionObserver, windowPositioningObserver).subscribe((event) => {
             const constructorCallbackMessage = event[0];
             if (_options.autoShow || _options.toShowOnRun) {
-                if (!browserWindow.isVisible()) {
+                // TODO: remove wasEarlyCloseRequested check if/when we remove handleEarlyClose workaround.
+                // Check currently needed to prevent a hidden window from flashing on load.
+                if (!browserWindow.isVisible() && !wasEarlyCloseRequested) {
                     Window.show(identity);
                 }
             }
